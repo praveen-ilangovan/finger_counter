@@ -9,6 +9,7 @@ Entry point to the module.
 import argparse
 
 # Local imports
+from . import finger_counter
 
 #-----------------------------------------------------------------------------#
 #
@@ -29,6 +30,7 @@ def main() -> None:
     """
     args = PARSER.parse_args()
     print("Press 'q' to quit the LiveFeed")
+    finger_counter.count()
 
 if __name__ == '__main__':
     main()

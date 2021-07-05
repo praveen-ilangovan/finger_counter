@@ -7,9 +7,93 @@ Uses mediapipe module to track hands
 """
 
 # Project specific imports
-import cv2 as cv
+import numpy as np
 import mediapipe as mp #type: ignore
-from typing import List
+from typing import List, Tuple, Optional
+
+#-----------------------------------------------------------------------------#
+#
+# Finger
+#
+#-----------------------------------------------------------------------------#
+class Finger():
+    def __init__(self, name: str, indices: Tuple, is_thumb: bool=False) -> None:
+        """
+        Indices is the list of four landmarks on each finger
+        """
+        super().__init__()
+        self.__name = name
+        self.__base, self.__pip, self.__dip, self.__tip = indices
+        self.__is_thumb = is_thumb
+
+    #--------------------------------------------------------------------------#
+    # Properties
+    #--------------------------------------------------------------------------#
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def is_thumb(self):
+        return self.__is_thumb
+
+    #--------------------------------------------------------------------------#
+    # Methods
+    #--------------------------------------------------------------------------#
+    def is_raised(self, landmarks) -> bool:
+        """
+        Check if the finger is raised using the landmarks.
+
+        # indices: 
+
+        Checks:
+            If the tip's y is lower than base'y
+            If so, check if the intermediate indices are lower too..
+
+        rtype:
+            bool
+        """
+
+        def get_x(index: int)-> float:
+            return landmarks.landmark[index].x
+
+        def get_y(index: int)-> float:
+            return landmarks.landmark[index].y
+
+        if len(landmarks.landmark) < self.__tip:
+            return False
+
+        base_y = get_y(self.__base)
+        tip_y = get_y(self.__tip)
+
+        if tip_y < base_y:
+            # Tip is lower than base, check each index to make sure, the finger
+            # is really upright
+            ys = (base_y, get_y(self.__pip), get_y(self.__dip), tip_y)
+            for i in range(len(ys)-1):
+                if ys[i+1] >= ys[i]:
+                    return False
+
+            if self.__is_thumb:
+                # Work out the direction of the hand, using the
+                # x positions of index and middle finger and then figure
+                # out if the thumb is extended out of the index finger
+                # to count it
+
+                index_x = get_x(8)
+                middle_x = get_x(12)
+                tip_x = get_x(self.__tip)
+
+                if index_x < middle_x:
+                    if tip_x >= index_x:
+                        return False
+                else:
+                    if tip_x <= index_x:
+                        return False
+
+            return True
+        
+        return False
 
 #-----------------------------------------------------------------------------#
 #
@@ -17,14 +101,7 @@ from typing import List
 #
 #-----------------------------------------------------------------------------#
 class HandTracker():
-
-    INDEX_FINGER = (5, 8, "index")
-    MIDDLE_FINGER = (9, 12, "middle")
-    RING_FINGER = (13, 16, "ring")
-    PINKY_FINGER = (17, 20, "pinky")
-    FINGERS = (INDEX_FINGER,MIDDLE_FINGER, RING_FINGER, PINKY_FINGER)
-
-    def __init__(self, max_hands: int=1):
+    def __init__(self, max_hands: int=1) -> None:
         super().__init__()
         self.__mp_hands = mp.solutions.hands
         self.__mp_draw = mp.solutions.drawing_utils
@@ -32,17 +109,16 @@ class HandTracker():
         self.__hands = self.__mp_hands.Hands(max_num_hands=max_hands,
                                              min_detection_confidence=0.6)
 
-    #--------------------------------------------------------------------------#
-    # Properties
-    #--------------------------------------------------------------------------#
-    @property
-    def hands(self):
-        return self.__hands
+        self.__fingers = (Finger("thumb", (1,2,3,4), True),
+                          Finger("index", (5,6,7,8)),
+                          Finger("middle", (9,10,11,12)),
+                          Finger("ring", (13,14,15,16)),
+                          Finger("pinky", (17,18,19,20)))
 
     #--------------------------------------------------------------------------#
     # Methods
     #--------------------------------------------------------------------------#
-    def get_raised_fingers(self, img, landmarks) -> List:
+    def get_raised_fingers(self, img:np.ndarray) -> List:
         """
         Find the raised fingers and return a list
 
@@ -52,30 +128,11 @@ class HandTracker():
         Returns:
             A list of fingers that are raised.
         """
-        raised_fingers = []
-        h,w,c = img.shape
+        results = self.__hands.process(img)
 
-        for finger in HandTracker.FINGERS:
-            if len(landmarks.landmark) < finger[1]:
-                continue
+        if results.multi_hand_landmarks:
+            for landmarks in results.multi_hand_landmarks:
+                return [f.name for f in self.__fingers if f.is_raised(landmarks)]
 
-            base = landmarks.landmark[finger[0]]
-            tip = landmarks.landmark[finger[1]]
+        return []
 
-            # print(landmarks.landmark[finger[0]])
-            # print(landmarks.landmark[finger[1]])
-
-            # Base: red
-            bx, by = (int(base.x*w), int(base.y*h))
-            # Draw a circle around the tip
-            cv.circle(img, (bx,by), 10, (0,0,125), cv.FILLED)
-
-            # Tip: green
-            tx, ty = (int(tip.x*w), int(tip.y*h))
-            # Draw a circle around the tip
-            cv.circle(img, (tx,ty), 10, (0,125,0), cv.FILLED)
-
-            if landmarks.landmark[finger[1]].y < landmarks.landmark[finger[0]].y:
-                raised_fingers.append(finger[2])
-
-        return raised_fingers

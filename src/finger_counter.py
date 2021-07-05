@@ -25,12 +25,8 @@ def count():
                 break
 
             img_rgb = cv_utils.convert_to_rgb(img)
-            results = hand_tracker.hands.process(img_rgb)
-
-            if results.multi_hand_landmarks:
-                for landmarks in results.multi_hand_landmarks:
-                    fingers = hand_tracker.get_raised_fingers(img, landmarks)
-                    print("Fingers: {0}".format(fingers))
+            fingers = hand_tracker.get_raised_fingers(img_rgb)
+            print("Fingers: {0}".format(fingers))
 
             quit_video = livefeed.show(img)
             if quit_video:

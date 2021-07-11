@@ -9,7 +9,7 @@ Uses mediapipe module to track hands
 # Project specific imports
 import numpy as np
 import mediapipe as mp #type: ignore
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 #-----------------------------------------------------------------------------#
 #
@@ -109,16 +109,16 @@ class HandTracker():
         self.__hands = self.__mp_hands.Hands(max_num_hands=max_hands,
                                              min_detection_confidence=0.6)
 
-        self.__fingers = (Finger("thumb", (1,2,3,4), True),
-                          Finger("index", (5,6,7,8)),
-                          Finger("middle", (9,10,11,12)),
-                          Finger("ring", (13,14,15,16)),
-                          Finger("pinky", (17,18,19,20)))
+        self.__fingers = (Finger("Thumb", (1,2,3,4), True),
+                          Finger("Index", (5,6,7,8)),
+                          Finger("Middle", (9,10,11,12)),
+                          Finger("Ring", (13,14,15,16)),
+                          Finger("Pinky", (17,18,19,20)))
 
     #--------------------------------------------------------------------------#
     # Methods
     #--------------------------------------------------------------------------#
-    def get_raised_fingers(self, img:np.ndarray) -> List:
+    def get_raised_fingers(self, img:np.ndarray, img_rgb) -> List:
         """
         Find the raised fingers and return a list
 
@@ -128,7 +128,7 @@ class HandTracker():
         Returns:
             A list of fingers that are raised.
         """
-        results = self.__hands.process(img)
+        results = self.__hands.process(img_rgb)
 
         if results.multi_hand_landmarks:
             for landmarks in results.multi_hand_landmarks:

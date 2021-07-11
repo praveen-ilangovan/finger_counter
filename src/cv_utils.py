@@ -13,7 +13,12 @@ from __future__ import annotations
 # Project specific imports
 import cv2 as cv #type: ignore
 import numpy as np
-from typing import Union, Optional
+from typing import Union, Optional, List
+
+# Local imports
+from .hand_tracker import HandTracker
+
+HAND_TRACKER = HandTracker()
 
 #-----------------------------------------------------------------------------#
 #
@@ -23,7 +28,7 @@ from typing import Union, Optional
 class VideoCapture(cv.VideoCapture):
     def __init__(self, filepath_or_index: Union[str,int],
                        apipref: Optional[int]=None,
-                       waittime: int=1,
+                       waittime: int=20,
                        quitkey: str="q"):
         """ Extends cv.VideoCapture to be used as context manager.
 
@@ -47,6 +52,8 @@ class VideoCapture(cv.VideoCapture):
     # Context managers
     #-------------------------------------------------------------------------#
     def __enter__(self) -> VideoCapture:
+        self.set(cv.CAP_PROP_FRAME_WIDTH, 640)
+        self.set(cv.CAP_PROP_FRAME_HEIGHT, 480)
         return self
     
     def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
@@ -103,3 +110,34 @@ def convert_to_rgb(img: np.ndarray) -> np.ndarray:
         A numpy array
     """
     return cv.cvtColor(img, cv.COLOR_BGR2RGB)
+
+def get_fingers(img: np.ndarray) -> List:
+    """
+    Get the raised fingers
+
+    Args:
+        img numpy.ndarray: Image in an numpy array format
+
+    rtype:
+        List
+
+    Returns:
+        A list of Fingers
+    """
+    img_rgb = convert_to_rgb(img)
+    return HAND_TRACKER.get_raised_fingers(img, img_rgb)
+
+def display_fingers(img: np.ndarray) -> None:
+    """
+    Find the fingers and display the information like
+    their landmarks, number of fingers, their names, etc
+
+    Args:
+        img numpy.ndarray: Image in an numpy array format
+    """
+    fingers = get_fingers(img)
+    if not fingers:
+        return None
+
+    txt = "Fingers: {0}".format(", ".join(fingers))
+    cv.putText(img, txt, (10,img.shape[0]-50), cv.FONT_HERSHEY_PLAIN, 1, (0,120,0), 2)
